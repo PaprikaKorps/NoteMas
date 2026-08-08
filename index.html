@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NoteMás - Local Notes</title>
+    <meta name="description" content="A premium offline note taking application.">
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+
+<body>
+    <div id="folder-overlay" class="folder-overlay">
+        <div class="folder-prompt">
+            <h2>Welcome to NoteMás</h2>
+            <p>To use this app completely offline and save to separate files, please grant access to the "nts" folder on
+                your device.</p>
+            <button id="open-folder-btn" class="btn-primary" style="margin: 20px auto;">
+                Select Notes Folder
+            </button>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>NoteMás</h1>
+                <button id="new-note-btn" class="btn-primary" aria-label="Create new note">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    New Note
+                </button>
+            </div>
+            <div class="notes-list" id="notes-list">
+                <!-- Notes will be injected here -->
+            </div>
+        </aside>
+
+        <!-- Main Editor Area -->
+        <main class="editor-area">
+            <div class="editor-placeholder" id="editor-placeholder">
+                <div class="placeholder-content">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" stroke-linejoin="round" class="placeholder-icon">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                    <h2>Select a note or create a new one</h2>
+                    <p>All your notes are saved securely inside your "nts" folder.</p>
+                </div>
+            </div>
+
+            <div class="editor-content hidden" id="editor-content">
+                <header class="editor-header">
+                    <div class="editor-header-inputs">
+                        <input type="text" id="note-category-input" class="note-category-input"
+                            placeholder="Category (e.g., Work)" aria-label="Note category" list="category-options"
+                            spellcheck="true">
+                        <datalist id="category-options"></datalist>
+                        <input type="text" id="note-title-input" class="note-title-input" placeholder="Note Title..."
+                            aria-label="Note title" spellcheck="true">
+                    </div>
+                    <div class="editor-header-actions">
+                        <button id="export-note-btn" class="btn-icon" aria-label="Export note"
+                            title="Export note as .txt">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                        </button>
+                        <button id="delete-note-btn" class="btn-icon danger" aria-label="Delete note"
+                            title="Delete note">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path
+                                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                </path>
+                            </svg>
+                        </button>
+                    </div>
+                </header>
+                <textarea id="note-body-input" class="note-body-input" placeholder="Start typing your note here..."
+                    aria-label="Note body" spellcheck="true"></textarea>
+                <div class="editor-footer">
+                    <span id="last-saved-indicator" class="save-status">Saved to file</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
