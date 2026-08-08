@@ -235,6 +235,53 @@ body {
     align-items: center;
 }
 
+.font-settings-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.font-settings-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background-color: rgba(15, 23, 42, 0.98);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px;
+    min-width: 190px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+    z-index: 10;
+}
+
+.font-settings-menu.hidden {
+    display: none;
+}
+
+.font-setting-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.note-font-select,
+.note-font-size-select {
+    background-color: rgba(30, 41, 59, 0.9);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-primary);
+    padding: 8px 10px;
+    font-size: 0.8rem;
+    min-width: 170px;
+}
+
 .editor-header-inputs {
     flex: 1;
     margin-right: 16px;

@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NoteMás - Local Notes</title>
-    <meta name="description" content="A premium offline note taking application.">
+    <meta name="description" content="An offline note taking application.">
     <link rel="stylesheet" href="style.css">
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
 </head>
@@ -14,7 +14,7 @@
     <div id="folder-overlay" class="folder-overlay">
         <div class="folder-prompt">
             <h2>Welcome to NoteMás</h2>
-            <p>To use this app completely offline and save to separate files, please grant access to the "nts" folder on
+            <p id="folder-message">To use this app completely offline and save to separate files, please grant access to the "nts" folder on
                 your device.</p>
             <button id="open-folder-btn" class="btn-primary" style="margin: 20px auto;">
                 Select Notes Folder
@@ -66,6 +66,32 @@
                             aria-label="Note title" spellcheck="true">
                     </div>
                     <div class="editor-header-actions">
+                        <div class="font-settings-container">
+                            <button id="font-settings-btn" class="btn-icon" aria-label="Change note font"
+                                title="Change note font">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                    <path d="M12 2v2.2M12 19.8V22M4.93 4.93l1.56 1.56M17.51 17.51l1.56 1.56M2 12h2.2M19.8 12H22M4.93 19.07l1.56-1.56M17.51 6.49l1.56-1.56"></path>
+                                </svg>
+                            </button>
+                            <div id="note-font-menu" class="font-settings-menu hidden">
+                                <label class="font-setting-group">
+                                    <span>Font</span>
+                                    <select id="note-font-select" class="note-font-select" aria-label="Select note font"></select>
+                                </label>
+                                <label class="font-setting-group">
+                                    <span>Size</span>
+                                    <select id="note-font-size-select" class="note-font-size-select" aria-label="Select note font size">
+                                        <option value="14px">Small</option>
+                                        <option value="16px">Medium</option>
+                                        <option value="18px">Large</option>
+                                        <option value="22px">XL</option>
+                                        <option value="28px">XXL</option>
+                                    </select>
+                                </label>
+                            </div>
+                        </div>
                         <button id="export-note-btn" class="btn-icon" aria-label="Export note"
                             title="Export note as .txt">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"

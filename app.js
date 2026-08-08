@@ -7,10 +7,20 @@ let directoryHandle = null;
 let notes = [];
 let activeNoteId = null;
 let saveTimeout = null;
+let eventListenersInitialized = false;
 const collapsedCategories = new Set();
+const DEFAULT_NOTE_FONT = 'Inter, "Segoe UI", sans-serif';
+const DEFAULT_NOTE_FONT_SIZE = '18px';
+const FONT_CANDIDATES = [
+    'Inter', 'Segoe UI', 'Arial', 'Helvetica', 'Verdana', 'Tahoma', 'Trebuchet MS',
+    'Georgia', 'Times New Roman', 'Garamond', 'Palatino Linotype', 'Courier New',
+    'Lucida Console', 'Monaco', 'Consolas', 'Impact', 'Comic Sans MS', 'Candara',
+    'Franklin Gothic Medium', 'Gill Sans', 'system-ui', 'sans-serif', 'serif', 'monospace'
+];
 
 // DOM Elements
 const folderOverlay = document.getElementById('folder-overlay');
+const folderMessage = document.getElementById('folder-message');
 const openFolderBtn = document.getElementById('open-folder-btn');
 const notesListEl = document.getElementById('notes-list');
 const newNoteBtn = document.getElementById('new-note-btn');
@@ -20,6 +30,10 @@ const titleInput = document.getElementById('note-title-input');
 const categoryInput = document.getElementById('note-category-input');
 const categoryOptionsEl = document.getElementById('category-options');
 const bodyInput = document.getElementById('note-body-input');
+const fontSettingsBtn = document.getElementById('font-settings-btn');
+const fontSelect = document.getElementById('note-font-select');
+const fontSizeSelect = document.getElementById('note-font-size-select');
+const fontMenu = document.getElementById('note-font-menu');
 const exportBtn = document.getElementById('export-note-btn');
 const deleteBtn = document.getElementById('delete-note-btn');
 const saveStatus = document.getElementById('last-saved-indicator');
@@ -71,8 +85,88 @@ async function verifyPermission(handle) {
     return false;
 }
 
+function setFolderMessage(message) {
+    if (!folderMessage) return;
+    folderMessage.textContent = message;
+}
+
+function formatFontFamily(fontName) {
+    const cleanName = (fontName || '').trim();
+    if (!cleanName) return DEFAULT_NOTE_FONT;
+
+    const serifFonts = ['Georgia', 'Times New Roman', 'Garamond', 'Palatino Linotype', 'Book Antiqua', 'Palatino'];
+    const monoFonts = ['Courier New', 'Lucida Console', 'Consolas', 'Monaco', 'SFMono-Regular'];
+
+    if (serifFonts.includes(cleanName)) {
+        return `"${cleanName}", serif`;
+    }
+    if (monoFonts.includes(cleanName)) {
+        return `"${cleanName}", monospace`;
+    }
+    if (cleanName.includes(' ') || cleanName.includes('-')) {
+        return `"${cleanName}", sans-serif`;
+    }
+    return `${cleanName}, sans-serif`;
+}
+
+function getAvailableFonts() {
+    const uniqueFonts = new Set(FONT_CANDIDATES);
+
+    if (document.fonts && typeof document.fonts.forEach === 'function') {
+        document.fonts.forEach(font => {
+            if (font && font.family) {
+                uniqueFonts.add(font.family);
+            }
+        });
+    }
+
+    const availableFonts = Array.from(uniqueFonts)
+        .filter(font => !!font && font.trim() !== '')
+        .filter(font => {
+            if (font === 'sans-serif' || font === 'serif' || font === 'monospace') return true;
+            try {
+                if (document.fonts && typeof document.fonts.check === 'function') {
+                    return document.fonts.check(`12px ${/[\s-]/.test(font) ? '"' + font + '"' : font}`);
+                }
+            } catch (e) {
+                console.warn('Could not verify font availability for', font, e);
+            }
+            return true;
+        })
+        .sort((a, b) => a.localeCompare(b));
+
+    return availableFonts.length ? availableFonts : FONT_CANDIDATES;
+}
+
+function populateFontOptions() {
+    if (!fontSelect) return;
+
+    const availableFonts = getAvailableFonts();
+    const currentFont = fontSelect.value || DEFAULT_NOTE_FONT;
+    fontSelect.innerHTML = '';
+
+    availableFonts.forEach(font => {
+        const option = document.createElement('option');
+        option.value = formatFontFamily(font);
+        option.textContent = font;
+        fontSelect.appendChild(option);
+    });
+
+    const validCurrent = Array.from(fontSelect.options).some(option => option.value === currentFont);
+    fontSelect.value = validCurrent ? currentFont : formatFontFamily('Segoe UI');
+}
+
+function supportsDirectoryPicker() {
+    return typeof window.showDirectoryPicker === 'function' && window.isSecureContext;
+}
+
 // Initialization
 async function init() {
+    if (!supportsDirectoryPicker()) {
+        setFolderMessage('This app needs to run from a secure local web server (for example http://localhost) because the browser blocks the folder picker on file:// pages. Open the project using a local server and try again.');
+        return;
+    }
+
     try {
         const handle = await getHandle();
         if (handle) {
@@ -93,6 +187,11 @@ async function init() {
 }
 
 openFolderBtn.addEventListener('click', async () => {
+    if (!supportsDirectoryPicker()) {
+        setFolderMessage('This app needs to run from a secure local web server (for example http://localhost) because the browser blocks the folder picker on file:// pages. Open the project using a local server and try again.');
+        return;
+    }
+
     try {
         directoryHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
         await setHandle(directoryHandle);
@@ -102,12 +201,14 @@ openFolderBtn.addEventListener('click', async () => {
         setupEventListeners();
     } catch (e) {
         console.error('Directory selection cancelled or failed', e);
-        alert('You must select a folder to use the app.');
+        setFolderMessage('You must select a folder to use the app. Please choose a folder in the browser dialog.');
     }
 });
 
-// Run Init
-init();
+window.addEventListener('DOMContentLoaded', () => {
+    populateFontOptions();
+    init();
+});
 
 // Data Management
 function sortNotes() {
@@ -145,7 +246,9 @@ async function loadNotes() {
                     body: noteData.body || '',
                     updatedAt: noteData.updatedAt || new Date().toISOString(),
                     isPinned: noteData.isPinned || false,
-                    pinnedAt: noteData.pinnedAt || null
+                    pinnedAt: noteData.pinnedAt || null,
+                    fontFamily: noteData.fontFamily || DEFAULT_NOTE_FONT,
+                    fontSize: noteData.fontSize || DEFAULT_NOTE_FONT_SIZE
                 });
             } catch (e) {
                 console.error('Failed to parse note:', entry.name);
@@ -164,7 +267,9 @@ async function saveNoteToFile(note) {
             body: note.body,
             updatedAt: note.updatedAt,
             isPinned: note.isPinned,
-            pinnedAt: note.pinnedAt
+            pinnedAt: note.pinnedAt,
+            fontFamily: note.fontFamily || DEFAULT_NOTE_FONT,
+            fontSize: note.fontSize || DEFAULT_NOTE_FONT_SIZE
         };
         await writable.write(JSON.stringify(noteData, null, 2));
         await writable.close();
@@ -205,7 +310,9 @@ async function createNote() {
             body: '',
             updatedAt: new Date().toISOString(),
             isPinned: false,
-            pinnedAt: null
+            pinnedAt: null,
+            fontFamily: DEFAULT_NOTE_FONT,
+            fontSize: DEFAULT_NOTE_FONT_SIZE
         };
         
         // Save initial state
@@ -231,6 +338,8 @@ async function updateActiveNote() {
     note.title = titleInput.value;
     note.category = categoryInput.value || 'Uncategorized';
     note.body = bodyInput.value;
+    note.fontFamily = fontSelect.value || DEFAULT_NOTE_FONT;
+    note.fontSize = fontSizeSelect.value || DEFAULT_NOTE_FONT_SIZE;
     note.updatedAt = new Date().toISOString();
     
     sortNotes();
@@ -241,6 +350,51 @@ async function updateActiveNote() {
         saveNoteToFile(note);
         renderNotesList(); // re-render to update categories
     }, 500);
+}
+
+function applyNoteFont(fontFamily, fontSize) {
+    const selectedFont = fontFamily || DEFAULT_NOTE_FONT;
+    const selectedSize = fontSize || DEFAULT_NOTE_FONT_SIZE;
+    titleInput.style.fontFamily = selectedFont;
+    categoryInput.style.fontFamily = selectedFont;
+    bodyInput.style.fontFamily = selectedFont;
+    titleInput.style.fontSize = selectedSize;
+    categoryInput.style.fontSize = selectedSize;
+    bodyInput.style.fontSize = selectedSize;
+
+    if (fontSelect) {
+        const fontExists = Array.from(fontSelect.options).some(option => option.value === selectedFont);
+        fontSelect.value = fontExists ? selectedFont : formatFontFamily('Segoe UI');
+    }
+
+    if (fontSizeSelect) {
+        const sizeExists = Array.from(fontSizeSelect.options).some(option => option.value === selectedSize);
+        fontSizeSelect.value = sizeExists ? selectedSize : DEFAULT_NOTE_FONT_SIZE;
+    }
+}
+
+function toggleFontMenu(forceOpen) {
+    if (!fontMenu) return;
+    const shouldShow = typeof forceOpen === 'boolean' ? forceOpen : fontMenu.classList.contains('hidden');
+    fontMenu.classList.toggle('hidden', !shouldShow);
+}
+
+async function changeNoteFont() {
+    if (!activeNoteId) return;
+
+    const noteIndex = notes.findIndex(n => n.id === activeNoteId);
+    if (noteIndex === -1) return;
+
+    const note = notes[noteIndex];
+    note.fontFamily = fontSelect.value || DEFAULT_NOTE_FONT;
+    note.fontSize = fontSizeSelect.value || DEFAULT_NOTE_FONT_SIZE;
+    applyNoteFont(note.fontFamily, note.fontSize);
+    toggleFontMenu(false);
+
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(() => {
+        saveNoteToFile(note);
+    }, 200);
 }
 
 async function deleteActiveNote() {
@@ -301,6 +455,19 @@ function updateEditorView() {
         titleInput.value = '';
         categoryInput.value = '';
         bodyInput.value = '';
+        titleInput.style.fontFamily = DEFAULT_NOTE_FONT;
+        categoryInput.style.fontFamily = DEFAULT_NOTE_FONT;
+        bodyInput.style.fontFamily = DEFAULT_NOTE_FONT;
+        titleInput.style.fontSize = DEFAULT_NOTE_FONT_SIZE;
+        categoryInput.style.fontSize = DEFAULT_NOTE_FONT_SIZE;
+        bodyInput.style.fontSize = DEFAULT_NOTE_FONT_SIZE;
+        if (fontSelect) {
+           fontSelect.value = formatFontFamily('Segoe UI');
+        }
+        if (fontSizeSelect) {
+           fontSizeSelect.value = DEFAULT_NOTE_FONT_SIZE;
+        }
+        toggleFontMenu(false);
         return;
     }
     
@@ -311,6 +478,7 @@ function updateEditorView() {
         titleInput.value = note.title;
         categoryInput.value = note.category === 'Uncategorized' ? '' : note.category;
         bodyInput.value = note.body;
+        applyNoteFont(note.fontFamily || DEFAULT_NOTE_FONT, note.fontSize || DEFAULT_NOTE_FONT_SIZE);
         
         if(!titleInput.value && !categoryInput.value && !bodyInput.value) {
            titleInput.focus(); 
@@ -461,10 +629,27 @@ function escapeHTML(str) {
 
 // Event Listeners (called after initialization)
 function setupEventListeners() {
+    if (eventListenersInitialized) return;
+
+    populateFontOptions();
+
     newNoteBtn.addEventListener('click', createNote);
     exportBtn.addEventListener('click', exportActiveNote);
     deleteBtn.addEventListener('click', deleteActiveNote);
     titleInput.addEventListener('input', updateActiveNote);
     categoryInput.addEventListener('input', updateActiveNote);
     bodyInput.addEventListener('input', updateActiveNote);
+    fontSettingsBtn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        toggleFontMenu();
+    });
+    fontSelect.addEventListener('change', changeNoteFont);
+    fontSizeSelect.addEventListener('change', changeNoteFont);
+    document.addEventListener('click', (event) => {
+        if (!event.target.closest('.font-settings-container')) {
+            toggleFontMenu(false);
+        }
+    });
+
+    eventListenersInitialized = true;
 }
