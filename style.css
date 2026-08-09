@@ -56,6 +56,13 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 12px;
+}
+
+.sidebar-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .sidebar-header h1 {
@@ -65,6 +72,10 @@ body {
     background: linear-gradient(to right, #a5b4fc, #c084fc);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+}
+
+.sidebar-folder-btn {
+    color: var(--text-secondary);
 }
 
 .notes-list {

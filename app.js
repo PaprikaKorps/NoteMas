@@ -22,6 +22,7 @@ const FONT_CANDIDATES = [
 const folderOverlay = document.getElementById('folder-overlay');
 const folderMessage = document.getElementById('folder-message');
 const openFolderBtn = document.getElementById('open-folder-btn');
+const changeFolderBtn = document.getElementById('change-folder-btn');
 const notesListEl = document.getElementById('notes-list');
 const newNoteBtn = document.getElementById('new-note-btn');
 const editorPlaceholder = document.getElementById('editor-placeholder');
@@ -88,6 +89,28 @@ async function verifyPermission(handle) {
 function setFolderMessage(message) {
     if (!folderMessage) return;
     folderMessage.textContent = message;
+}
+
+async function selectAndLoadFolder() {
+    if (!supportsDirectoryPicker()) {
+        setFolderMessage('This app needs to run from a secure local web server (for example http://localhost) because the browser blocks the folder picker on file:// pages. Open the project using a local server and try again.');
+        return;
+    }
+
+    try {
+        directoryHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        await setHandle(directoryHandle);
+        folderOverlay.classList.add('hidden');
+        await loadNotes();
+        renderNotesList();
+        updateEditorView();
+        setupEventListeners();
+    } catch (e) {
+        console.error('Directory selection cancelled or failed', e);
+        if (!notes.length) {
+            setFolderMessage('You must select a folder to use the app. Please choose a folder in the browser dialog.');
+        }
+    }
 }
 
 function formatFontFamily(fontName) {
@@ -186,24 +209,10 @@ async function init() {
     // If no handle or permission denied, keep overlay visible
 }
 
-openFolderBtn.addEventListener('click', async () => {
-    if (!supportsDirectoryPicker()) {
-        setFolderMessage('This app needs to run from a secure local web server (for example http://localhost) because the browser blocks the folder picker on file:// pages. Open the project using a local server and try again.');
-        return;
-    }
-
-    try {
-        directoryHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-        await setHandle(directoryHandle);
-        folderOverlay.classList.add('hidden');
-        await loadNotes();
-        renderNotesList();
-        setupEventListeners();
-    } catch (e) {
-        console.error('Directory selection cancelled or failed', e);
-        setFolderMessage('You must select a folder to use the app. Please choose a folder in the browser dialog.');
-    }
-});
+openFolderBtn.addEventListener('click', selectAndLoadFolder);
+if (changeFolderBtn) {
+    changeFolderBtn.addEventListener('click', selectAndLoadFolder);
+}
 
 window.addEventListener('DOMContentLoaded', () => {
     populateFontOptions();
