@@ -1,9 +1,16 @@
 /**
- * Notable - File System Access API Logic with Persistence
+ * NoteMás - Dual-Mode Note Taking App
+ * Supports Tauri native filesystem (macOS) and browser File System Access API fallback
  */
 
+// ============================================================
+// Dual-Mode Detection & Backend Abstraction
+// ============================================================
+const IS_TAURI = Boolean(window.__TAURI__);
+let tauriDirPath = null;     // string path used in Tauri mode
+
 // State
-let directoryHandle = null;
+let directoryHandle = null;  // FileSystemDirectoryHandle used in browser mode
 let notes = [];
 let activeNoteId = null;
 let saveTimeout = null;
@@ -38,6 +45,125 @@ const fontMenu = document.getElementById('note-font-menu');
 const exportBtn = document.getElementById('export-note-btn');
 const deleteBtn = document.getElementById('delete-note-btn');
 const saveStatus = document.getElementById('last-saved-indicator');
+
+// ============================================================
+// Tauri Filesystem Helpers
+// ============================================================
+
+/**
+ * Get the path separator (Tauri provides paths with OS-native separators)
+ */
+function joinPath(base, filename) {
+    if (base.endsWith('/') || base.endsWith('\\')) {
+        return base + filename;
+    }
+    return base + '/' + filename;
+}
+
+/**
+ * Pick a directory using Tauri's native dialog
+ */
+async function tauriPickDirectory() {
+    const { open } = window.__TAURI__.dialog;
+    const selected = await open({
+        directory: true,
+        multiple: false,
+        title: 'Select your Notes Folder'
+    });
+    return selected; // returns a string path or null if cancelled
+}
+
+/**
+ * Read all .json note files from a directory (Tauri mode)
+ */
+async function tauriLoadNotes(dirPath) {
+    const { readDir, readTextFile } = window.__TAURI__.fs;
+    const loadedNotes = [];
+
+    try {
+        const entries = await readDir(dirPath);
+        for (const entry of entries) {
+            if (entry.name && entry.name.endsWith('.json')) {
+                try {
+                    const filePath = joinPath(dirPath, entry.name);
+                    const contents = await readTextFile(filePath);
+                    const noteData = JSON.parse(contents);
+                    loadedNotes.push({
+                        id: entry.name.replace('.json', ''),
+                        title: noteData.title || '',
+                        category: noteData.category || 'Uncategorized',
+                        body: noteData.body || '',
+                        updatedAt: noteData.updatedAt || new Date().toISOString(),
+                        isPinned: noteData.isPinned || false,
+                        pinnedAt: noteData.pinnedAt || null,
+                        fontFamily: noteData.fontFamily || DEFAULT_NOTE_FONT,
+                        fontSize: noteData.fontSize || DEFAULT_NOTE_FONT_SIZE
+                    });
+                } catch (e) {
+                    console.error('Failed to parse note:', entry.name, e);
+                }
+            }
+        }
+    } catch (e) {
+        console.error('Failed to read directory:', dirPath, e);
+    }
+
+    return loadedNotes;
+}
+
+/**
+ * Save a note to a .json file (Tauri mode)
+ */
+async function tauriSaveNote(note) {
+    const { writeTextFile } = window.__TAURI__.fs;
+    const filePath = joinPath(tauriDirPath, note.id + '.json');
+    const noteData = {
+        title: note.title,
+        category: note.category,
+        body: note.body,
+        updatedAt: note.updatedAt,
+        isPinned: note.isPinned,
+        pinnedAt: note.pinnedAt,
+        fontFamily: note.fontFamily || DEFAULT_NOTE_FONT,
+        fontSize: note.fontSize || DEFAULT_NOTE_FONT_SIZE
+    };
+    await writeTextFile(filePath, JSON.stringify(noteData, null, 2));
+}
+
+/**
+ * Delete a note file (Tauri mode)
+ */
+async function tauriDeleteNote(noteId) {
+    const { remove } = window.__TAURI__.fs;
+    const filePath = joinPath(tauriDirPath, noteId + '.json');
+    await remove(filePath);
+}
+
+/**
+ * Export a note as .txt using Tauri's save dialog
+ */
+async function tauriExportNote(note) {
+    const { save } = window.__TAURI__.dialog;
+    const { writeTextFile } = window.__TAURI__.fs;
+
+    const filePath = await save({
+        defaultPath: (note.title || 'Untitled Note') + '.txt',
+        filters: [{
+            name: 'Text Files',
+            extensions: ['txt']
+        }]
+    });
+
+    if (filePath) {
+        const content = `Title: ${note.title || 'Untitled Note'}\nCategory: ${note.category || 'Uncategorized'}\n\n${note.body}`;
+        await writeTextFile(filePath, content);
+    }
+}
+
+
+// ============================================================
+// Browser File System Access API Helpers (existing logic)
+// ============================================================
 
 // IndexedDB Helper for Storing Handle
 const dbName = 'notable-db';
@@ -86,12 +212,43 @@ async function verifyPermission(handle) {
     return false;
 }
 
+function supportsDirectoryPicker() {
+    return typeof window.showDirectoryPicker === 'function' && window.isSecureContext;
+}
+
+
+// ============================================================
+// Unified Operations (route to Tauri or Browser backend)
+// ============================================================
+
 function setFolderMessage(message) {
     if (!folderMessage) return;
     folderMessage.textContent = message;
 }
 
 async function selectAndLoadFolder() {
+    if (IS_TAURI) {
+        try {
+            const selected = await tauriPickDirectory();
+            if (selected) {
+                tauriDirPath = selected;
+                localStorage.setItem('notemas-tauri-dir', tauriDirPath);
+                folderOverlay.classList.add('hidden');
+                await loadNotes();
+                renderNotesList();
+                updateEditorView();
+                setupEventListeners();
+            }
+        } catch (e) {
+            console.error('Directory selection cancelled or failed', e);
+            if (!notes.length) {
+                setFolderMessage('You must select a folder to use the app. Please choose a folder.');
+            }
+        }
+        return;
+    }
+
+    // Browser fallback
     if (!supportsDirectoryPicker()) {
         setFolderMessage('This app needs to run from a secure local web server (for example http://localhost) because the browser blocks the folder picker on file:// pages. Open the project using a local server and try again.');
         return;
@@ -112,6 +269,10 @@ async function selectAndLoadFolder() {
         }
     }
 }
+
+// ============================================================
+// Font Management
+// ============================================================
 
 function formatFontFamily(fontName) {
     const cleanName = (fontName || '').trim();
@@ -179,12 +340,36 @@ function populateFontOptions() {
     fontSelect.value = validCurrent ? currentFont : formatFontFamily('Segoe UI');
 }
 
-function supportsDirectoryPicker() {
-    return typeof window.showDirectoryPicker === 'function' && window.isSecureContext;
-}
 
+// ============================================================
 // Initialization
+// ============================================================
+
 async function init() {
+    if (IS_TAURI) {
+        // Tauri mode: check localStorage for a previously selected directory
+        const savedDir = localStorage.getItem('notemas-tauri-dir');
+        if (savedDir) {
+            try {
+                // Verify the directory still exists by trying to read it
+                const { readDir } = window.__TAURI__.fs;
+                await readDir(savedDir);
+                tauriDirPath = savedDir;
+                folderOverlay.classList.add('hidden');
+                await loadNotes();
+                renderNotesList();
+                setupEventListeners();
+                return;
+            } catch (e) {
+                console.warn('Previously saved directory no longer accessible, prompting user.', e);
+                localStorage.removeItem('notemas-tauri-dir');
+            }
+        }
+        // If no saved dir or it failed, show the overlay
+        return;
+    }
+
+    // Browser mode
     if (!supportsDirectoryPicker()) {
         setFolderMessage('This app needs to run from a secure local web server (for example http://localhost) because the browser blocks the folder picker on file:// pages. Open the project using a local server and try again.');
         return;
@@ -219,7 +404,11 @@ window.addEventListener('DOMContentLoaded', () => {
     init();
 });
 
+
+// ============================================================
 // Data Management
+// ============================================================
+
 function sortNotes() {
     notes.sort((a, b) => {
         if (a.isPinned && b.isPinned) {
@@ -240,27 +429,32 @@ function sortNotes() {
 }
 
 async function loadNotes() {
-    notes = [];
-    for await (const entry of directoryHandle.values()) {
-        if (entry.kind === 'file' && entry.name.endsWith('.json')) {
-            try {
-                const file = await entry.getFile();
-                const contents = await file.text();
-                const noteData = JSON.parse(contents);
-                notes.push({
-                    id: entry.name.replace('.json', ''),
-                    handle: entry,
-                    title: noteData.title || '',
-                    category: noteData.category || 'Uncategorized',
-                    body: noteData.body || '',
-                    updatedAt: noteData.updatedAt || new Date().toISOString(),
-                    isPinned: noteData.isPinned || false,
-                    pinnedAt: noteData.pinnedAt || null,
-                    fontFamily: noteData.fontFamily || DEFAULT_NOTE_FONT,
-                    fontSize: noteData.fontSize || DEFAULT_NOTE_FONT_SIZE
-                });
-            } catch (e) {
-                console.error('Failed to parse note:', entry.name);
+    if (IS_TAURI) {
+        notes = await tauriLoadNotes(tauriDirPath);
+    } else {
+        // Browser mode: iterate directory handle
+        notes = [];
+        for await (const entry of directoryHandle.values()) {
+            if (entry.kind === 'file' && entry.name.endsWith('.json')) {
+                try {
+                    const file = await entry.getFile();
+                    const contents = await file.text();
+                    const noteData = JSON.parse(contents);
+                    notes.push({
+                        id: entry.name.replace('.json', ''),
+                        handle: entry,
+                        title: noteData.title || '',
+                        category: noteData.category || 'Uncategorized',
+                        body: noteData.body || '',
+                        updatedAt: noteData.updatedAt || new Date().toISOString(),
+                        isPinned: noteData.isPinned || false,
+                        pinnedAt: noteData.pinnedAt || null,
+                        fontFamily: noteData.fontFamily || DEFAULT_NOTE_FONT,
+                        fontSize: noteData.fontSize || DEFAULT_NOTE_FONT_SIZE
+                    });
+                } catch (e) {
+                    console.error('Failed to parse note:', entry.name);
+                }
             }
         }
     }
@@ -269,19 +463,24 @@ async function loadNotes() {
 
 async function saveNoteToFile(note) {
     try {
-        const writable = await note.handle.createWritable();
-        const noteData = {
-            title: note.title,
-            category: note.category,
-            body: note.body,
-            updatedAt: note.updatedAt,
-            isPinned: note.isPinned,
-            pinnedAt: note.pinnedAt,
-            fontFamily: note.fontFamily || DEFAULT_NOTE_FONT,
-            fontSize: note.fontSize || DEFAULT_NOTE_FONT_SIZE
-        };
-        await writable.write(JSON.stringify(noteData, null, 2));
-        await writable.close();
+        if (IS_TAURI) {
+            await tauriSaveNote(note);
+        } else {
+            // Browser mode
+            const writable = await note.handle.createWritable();
+            const noteData = {
+                title: note.title,
+                category: note.category,
+                body: note.body,
+                updatedAt: note.updatedAt,
+                isPinned: note.isPinned,
+                pinnedAt: note.pinnedAt,
+                fontFamily: note.fontFamily || DEFAULT_NOTE_FONT,
+                fontSize: note.fontSize || DEFAULT_NOTE_FONT_SIZE
+            };
+            await writable.write(JSON.stringify(noteData, null, 2));
+            await writable.close();
+        }
         showSaveStatus();
     } catch (e) {
         console.error('Failed to save file', e);
@@ -306,14 +505,16 @@ window.togglePin = async function(event, id) {
     await saveNoteToFile(note);
 }
 
+
+// ============================================================
 // Core Operations
+// ============================================================
+
 async function createNote() {
     const newId = 'note_' + Date.now();
     try {
-        const newFileHandle = await directoryHandle.getFileHandle(newId + '.json', { create: true });
         const newNote = {
             id: newId,
-            handle: newFileHandle,
             title: '',
             category: 'Uncategorized',
             body: '',
@@ -323,9 +524,29 @@ async function createNote() {
             fontFamily: DEFAULT_NOTE_FONT,
             fontSize: DEFAULT_NOTE_FONT_SIZE
         };
-        
-        // Save initial state
-        await saveNoteToFile(newNote);
+
+        if (IS_TAURI) {
+            // Tauri mode: just write the file
+            await tauriSaveNote(newNote);
+        } else {
+            // Browser mode: create file handle
+            const newFileHandle = await directoryHandle.getFileHandle(newId + '.json', { create: true });
+            newNote.handle = newFileHandle;
+            // Save initial state
+            const writable = await newFileHandle.createWritable();
+            const noteData = {
+                title: newNote.title,
+                category: newNote.category,
+                body: newNote.body,
+                updatedAt: newNote.updatedAt,
+                isPinned: newNote.isPinned,
+                pinnedAt: newNote.pinnedAt,
+                fontFamily: newNote.fontFamily,
+                fontSize: newNote.fontSize
+            };
+            await writable.write(JSON.stringify(noteData, null, 2));
+            await writable.close();
+        }
         
         notes.push(newNote);
         sortNotes();
@@ -412,7 +633,13 @@ async function deleteActiveNote() {
     if (confirm('Are you sure you want to delete this note file permanently?')) {
         try {
             const note = notes.find(n => n.id === activeNoteId);
-            await directoryHandle.removeEntry(note.handle.name);
+
+            if (IS_TAURI) {
+                await tauriDeleteNote(note.id);
+            } else {
+                await directoryHandle.removeEntry(note.handle.name);
+            }
+
             notes = notes.filter(n => n.id !== activeNoteId);
             activeNoteId = null;
             renderNotesList();
@@ -430,18 +657,23 @@ async function exportActiveNote() {
     if (!note) return;
 
     try {
-        const handle = await window.showSaveFilePicker({
-            suggestedName: (note.title || 'Untitled Note') + '.txt',
-            types: [{
-                description: 'Text Files',
-                accept: { 'text/plain': ['.txt'] }
-            }]
-        });
-        
-        const writable = await handle.createWritable();
-        const content = `Title: ${note.title || 'Untitled Note'}\nCategory: ${note.category || 'Uncategorized'}\n\n${note.body}`;
-        await writable.write(content);
-        await writable.close();
+        if (IS_TAURI) {
+            await tauriExportNote(note);
+        } else {
+            // Browser mode
+            const handle = await window.showSaveFilePicker({
+                suggestedName: (note.title || 'Untitled Note') + '.txt',
+                types: [{
+                    description: 'Text Files',
+                    accept: { 'text/plain': ['.txt'] }
+                }]
+            });
+            
+            const writable = await handle.createWritable();
+            const content = `Title: ${note.title || 'Untitled Note'}\nCategory: ${note.category || 'Uncategorized'}\n\n${note.body}`;
+            await writable.write(content);
+            await writable.close();
+        }
     } catch (e) {
         if (e.name !== 'AbortError') {
             console.error('Failed to export file', e);
@@ -450,7 +682,11 @@ async function exportActiveNote() {
     }
 }
 
+
+// ============================================================
 // UI Updates
+// ============================================================
+
 function openNote(id) {
     activeNoteId = id;
     renderNotesList();
@@ -623,7 +859,11 @@ function showSaveStatus() {
     }, 2000);
 }
 
+
+// ============================================================
 // Utility
+// ============================================================
+
 function escapeHTML(str) {
     return str.replace(/[&<>'"]/g, 
         tag => ({
@@ -636,7 +876,11 @@ function escapeHTML(str) {
     );
 }
 
+
+// ============================================================
 // Event Listeners (called after initialization)
+// ============================================================
+
 function setupEventListeners() {
     if (eventListenersInitialized) return;
 
