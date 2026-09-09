@@ -38,10 +38,17 @@ const titleInput = document.getElementById('note-title-input');
 const categoryInput = document.getElementById('note-category-input');
 const categoryOptionsEl = document.getElementById('category-options');
 const bodyInput = document.getElementById('note-body-input');
-const fontSettingsBtn = document.getElementById('font-settings-btn');
 const fontSelect = document.getElementById('note-font-select');
 const fontSizeSelect = document.getElementById('note-font-size-select');
-const fontMenu = document.getElementById('note-font-menu');
+const boldBtn = document.getElementById('bold-btn');
+const italicBtn = document.getElementById('italic-btn');
+const strikethroughBtn = document.getElementById('strikethrough-btn');
+const codeBtn = document.getElementById('code-btn');
+const headingBtn = document.getElementById('heading-btn');
+const quoteBtn = document.getElementById('quote-btn');
+const checklistBtn = document.getElementById('checklist-btn');
+const bulletListBtn = document.getElementById('bullet-list-btn');
+const numberedListBtn = document.getElementById('numbered-list-btn');
 const exportBtn = document.getElementById('export-note-btn');
 const deleteBtn = document.getElementById('delete-note-btn');
 const saveStatus = document.getElementById('last-saved-indicator');
@@ -155,7 +162,8 @@ async function tauriExportNote(note) {
     });
 
     if (filePath) {
-        const content = `Title: ${note.title || 'Untitled Note'}\nCategory: ${note.category || 'Uncategorized'}\n\n${note.body}`;
+        const plainBody = getNotePlainText(note.body);
+        const content = `Title: ${note.title || 'Untitled Note'}\nCategory: ${note.category || 'Uncategorized'}\n\n${plainBody}`;
         await writeTextFile(filePath, content);
     }
 }
@@ -567,9 +575,9 @@ async function updateActiveNote() {
     const note = notes[noteIndex];
     note.title = titleInput.value;
     note.category = categoryInput.value || 'Uncategorized';
-    note.body = bodyInput.value;
-    note.fontFamily = fontSelect.value || DEFAULT_NOTE_FONT;
-    note.fontSize = fontSizeSelect.value || DEFAULT_NOTE_FONT_SIZE;
+    note.body = bodyInput.innerHTML;
+    note.fontFamily = fontSelect ? (fontSelect.value || DEFAULT_NOTE_FONT) : DEFAULT_NOTE_FONT;
+    note.fontSize = fontSizeSelect ? (fontSizeSelect.value || DEFAULT_NOTE_FONT_SIZE) : DEFAULT_NOTE_FONT_SIZE;
     note.updatedAt = new Date().toISOString();
     
     sortNotes();
@@ -603,12 +611,6 @@ function applyNoteFont(fontFamily, fontSize) {
     }
 }
 
-function toggleFontMenu(forceOpen) {
-    if (!fontMenu) return;
-    const shouldShow = typeof forceOpen === 'boolean' ? forceOpen : fontMenu.classList.contains('hidden');
-    fontMenu.classList.toggle('hidden', !shouldShow);
-}
-
 async function changeNoteFont() {
     if (!activeNoteId) return;
 
@@ -616,10 +618,9 @@ async function changeNoteFont() {
     if (noteIndex === -1) return;
 
     const note = notes[noteIndex];
-    note.fontFamily = fontSelect.value || DEFAULT_NOTE_FONT;
-    note.fontSize = fontSizeSelect.value || DEFAULT_NOTE_FONT_SIZE;
+    note.fontFamily = fontSelect ? (fontSelect.value || DEFAULT_NOTE_FONT) : DEFAULT_NOTE_FONT;
+    note.fontSize = fontSizeSelect ? (fontSizeSelect.value || DEFAULT_NOTE_FONT_SIZE) : DEFAULT_NOTE_FONT_SIZE;
     applyNoteFont(note.fontFamily, note.fontSize);
-    toggleFontMenu(false);
 
     clearTimeout(saveTimeout);
     saveTimeout = setTimeout(() => {
@@ -670,7 +671,8 @@ async function exportActiveNote() {
             });
             
             const writable = await handle.createWritable();
-            const content = `Title: ${note.title || 'Untitled Note'}\nCategory: ${note.category || 'Uncategorized'}\n\n${note.body}`;
+            const plainBody = getNotePlainText(note.body);
+            const content = `Title: ${note.title || 'Untitled Note'}\nCategory: ${note.category || 'Uncategorized'}\n\n${plainBody}`;
             await writable.write(content);
             await writable.close();
         }
@@ -699,7 +701,7 @@ function updateEditorView() {
         editorContent.classList.add('hidden');
         titleInput.value = '';
         categoryInput.value = '';
-        bodyInput.value = '';
+        bodyInput.innerHTML = '';
         titleInput.style.fontFamily = DEFAULT_NOTE_FONT;
         categoryInput.style.fontFamily = DEFAULT_NOTE_FONT;
         bodyInput.style.fontFamily = DEFAULT_NOTE_FONT;
@@ -712,7 +714,6 @@ function updateEditorView() {
         if (fontSizeSelect) {
            fontSizeSelect.value = DEFAULT_NOTE_FONT_SIZE;
         }
-        toggleFontMenu(false);
         return;
     }
     
@@ -722,10 +723,10 @@ function updateEditorView() {
         editorContent.classList.remove('hidden');
         titleInput.value = note.title;
         categoryInput.value = note.category === 'Uncategorized' ? '' : note.category;
-        bodyInput.value = note.body;
+        bodyInput.innerHTML = formatInitialBodyContent(note.body);
         applyNoteFont(note.fontFamily || DEFAULT_NOTE_FONT, note.fontSize || DEFAULT_NOTE_FONT_SIZE);
         
-        if(!titleInput.value && !categoryInput.value && !bodyInput.value) {
+        if(!titleInput.value && !categoryInput.value && !getNotePlainText(note.body)) {
            titleInput.focus(); 
         }
     }
@@ -737,8 +738,9 @@ function createNoteItemHTML(note) {
         month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
     }).format(date);
     
-    const displayTitle = note.title.trim() || 'Untitled Note';
-    const displayBody = note.body.trim() || 'No additional text';
+    const displayTitle = (note.title || '').trim() || 'Untitled Note';
+    const plainBody = getNotePlainText(note.body);
+    const displayBody = plainBody || 'No additional text';
     
     let categoryTag = '';
     if (note.category && note.category.toLowerCase() !== 'uncategorized') {
@@ -756,6 +758,7 @@ function createNoteItemHTML(note) {
                 </svg>
             </button>
         </div>
+        <div class="note-item-preview">${escapeHTML(displayBody)}</div>
         <div class="note-item-date">${formattedDate}</div>
     `;
 }
@@ -865,6 +868,7 @@ function showSaveStatus() {
 // ============================================================
 
 function escapeHTML(str) {
+    if (!str) return '';
     return str.replace(/[&<>'"]/g, 
         tag => ({
             '&': '&amp;',
@@ -874,6 +878,222 @@ function escapeHTML(str) {
             '"': '&quot;'
         }[tag] || tag)
     );
+}
+
+function getNotePlainText(htmlOrText) {
+    if (!htmlOrText) return '';
+    const temp = document.createElement('div');
+    temp.innerHTML = htmlOrText;
+    return (temp.innerText || temp.textContent || '').trim();
+}
+
+function formatInitialBodyContent(body) {
+    if (!body) return '';
+    // If it already looks like HTML (has tags)
+    if (/<[a-z][\s\S]*>/i.test(body)) {
+        return body;
+    }
+    // Convert legacy raw markdown / plain text to HTML
+    return escapeHTML(body)
+        .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+        .replace(/\*(.*?)\*/g, '<i>$1</i>')
+        .replace(/~~(.*?)~~/g, '<s>$1</s>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+        .replace(/^> (.*$)/gim, '<blockquote>$1</blockquote>')
+        .replace(/^- \[x\] (.*$)/gim, '<div class="checklist-item checked"><input type="checkbox" class="checklist-checkbox" checked> <span>$1</span></div>')
+        .replace(/^- \[ \] (.*$)/gim, '<div class="checklist-item"><input type="checkbox" class="checklist-checkbox"> <span>$1</span></div>')
+        .replace(/^- (.*$)/gim, '<li>$1</li>')
+        .replace(/\n/g, '<br>');
+}
+
+
+// ============================================================
+// Rich Text Formatting Operations (WYSIWYG)
+// ============================================================
+
+function execFormat(command, value = null) {
+    if (!bodyInput) return;
+    bodyInput.focus();
+    document.execCommand(command, false, value);
+    updateActiveNote();
+}
+
+function formatBold() {
+    execFormat('bold');
+}
+
+function formatItalic() {
+    execFormat('italic');
+}
+
+function formatStrikethrough() {
+    execFormat('strikeThrough');
+}
+
+function formatCode() {
+    if (!bodyInput) return;
+    bodyInput.focus();
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    const parentCode = selection.anchorNode && selection.anchorNode.parentElement && selection.anchorNode.parentElement.closest('code');
+    
+    if (parentCode) {
+        // Unwrap code element
+        const textNode = document.createTextNode(parentCode.textContent);
+        parentCode.parentNode.replaceChild(textNode, parentCode);
+    } else {
+        const selectedContent = range.extractContents();
+        const codeEl = document.createElement('code');
+        if (selectedContent.textContent.length === 0) {
+            codeEl.textContent = 'code';
+        } else {
+            codeEl.appendChild(selectedContent);
+        }
+        range.insertNode(codeEl);
+        
+        const newRange = document.createRange();
+        newRange.selectNodeContents(codeEl);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+    }
+    updateActiveNote();
+}
+
+function toggleHeading() {
+    if (!bodyInput) return;
+    bodyInput.focus();
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+    const parentHeading = selection.anchorNode && selection.anchorNode.parentElement && selection.anchorNode.parentElement.closest('h1, h2, h3');
+    if (parentHeading) {
+        document.execCommand('formatBlock', false, '<p>');
+    } else {
+        document.execCommand('formatBlock', false, '<h1>');
+    }
+    updateActiveNote();
+}
+
+function toggleQuote() {
+    if (!bodyInput) return;
+    bodyInput.focus();
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+    const parentQuote = selection.anchorNode && selection.anchorNode.parentElement && selection.anchorNode.parentElement.closest('blockquote');
+    if (parentQuote) {
+        document.execCommand('formatBlock', false, '<p>');
+    } else {
+        document.execCommand('formatBlock', false, '<blockquote>');
+    }
+    updateActiveNote();
+}
+
+function toggleBulletList() {
+    execFormat('insertUnorderedList');
+}
+
+function toggleNumberedList() {
+    execFormat('insertOrderedList');
+}
+
+function toggleChecklist() {
+    if (!bodyInput) return;
+    bodyInput.focus();
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const selectedText = selection.toString().trim() || 'Task item';
+    const checklistHtml = `<div class="checklist-item"><input type="checkbox" class="checklist-checkbox"> <span>${escapeHTML(selectedText)}</span></div>`;
+    document.execCommand('insertHTML', false, checklistHtml);
+    updateActiveNote();
+}
+
+/**
+ * Smart keyboard handlers for Note Body (Enter, Tab, Shift+Tab, Cmd+B, Cmd+I, Cmd+U, Cmd+Enter)
+ */
+function handleBodyKeydown(e) {
+    if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'b' || e.key === 'B') {
+            e.preventDefault();
+            formatBold();
+            return;
+        }
+        if (e.key === 'i' || e.key === 'I') {
+            e.preventDefault();
+            formatItalic();
+            return;
+        }
+        if (e.key === 'u' || e.key === 'U') {
+            e.preventDefault();
+            execFormat('underline');
+            return;
+        }
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const sel = window.getSelection();
+            if (sel && sel.anchorNode) {
+                const item = sel.anchorNode.nodeType === 1 ? sel.anchorNode.closest('.checklist-item') : (sel.anchorNode.parentElement ? sel.anchorNode.parentElement.closest('.checklist-item') : null);
+                if (item) {
+                    const cb = item.querySelector('.checklist-checkbox');
+                    if (cb) {
+                        cb.checked = !cb.checked;
+                        item.classList.toggle('checked', cb.checked);
+                        if (cb.checked) {
+                            cb.setAttribute('checked', 'checked');
+                        } else {
+                            cb.removeAttribute('checked');
+                        }
+                        updateActiveNote();
+                    }
+                }
+            }
+            return;
+        }
+    }
+
+    if (e.key === 'Enter' && !e.shiftKey) {
+        const sel = window.getSelection();
+        if (sel && sel.anchorNode) {
+            const item = sel.anchorNode.nodeType === 1 ? sel.anchorNode.closest('.checklist-item') : (sel.anchorNode.parentElement ? sel.anchorNode.parentElement.closest('.checklist-item') : null);
+            if (item) {
+                const textContent = item.textContent.trim();
+                if (textContent === '') {
+                    // Empty checklist item: exit list
+                    e.preventDefault();
+                    const p = document.createElement('div');
+                    p.innerHTML = '<br>';
+                    item.parentNode.replaceChild(p, item);
+                    const range = document.createRange();
+                    range.setStart(p, 0);
+                    range.collapse(true);
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                    updateActiveNote();
+                    return;
+                } else {
+                    // Create next checklist item
+                    e.preventDefault();
+                    const nextItem = document.createElement('div');
+                    nextItem.className = 'checklist-item';
+                    nextItem.innerHTML = '<input type="checkbox" class="checklist-checkbox"> <span>&nbsp;</span>';
+                    if (item.nextSibling) {
+                        item.parentNode.insertBefore(nextItem, item.nextSibling);
+                    } else {
+                        item.parentNode.appendChild(nextItem);
+                    }
+                    const span = nextItem.querySelector('span');
+                    const range = document.createRange();
+                    range.selectNodeContents(span);
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                    updateActiveNote();
+                    return;
+                }
+            }
+        }
+    }
 }
 
 
@@ -892,17 +1112,58 @@ function setupEventListeners() {
     titleInput.addEventListener('input', updateActiveNote);
     categoryInput.addEventListener('input', updateActiveNote);
     bodyInput.addEventListener('input', updateActiveNote);
-    fontSettingsBtn.addEventListener('click', (event) => {
-        event.stopPropagation();
-        toggleFontMenu();
-    });
-    fontSelect.addEventListener('change', changeNoteFont);
-    fontSizeSelect.addEventListener('change', changeNoteFont);
-    document.addEventListener('click', (event) => {
-        if (!event.target.closest('.font-settings-container')) {
-            toggleFontMenu(false);
+    bodyInput.addEventListener('keydown', handleBodyKeydown);
+
+    bodyInput.addEventListener('click', (e) => {
+        if (e.target && e.target.classList.contains('checklist-checkbox')) {
+            const item = e.target.closest('.checklist-item');
+            if (item) {
+                item.classList.toggle('checked', e.target.checked);
+                if (e.target.checked) {
+                    e.target.setAttribute('checked', 'checked');
+                } else {
+                    e.target.removeAttribute('checked');
+                }
+                updateActiveNote();
+            }
         }
     });
+
+    if (boldBtn) {
+        boldBtn.addEventListener('click', formatBold);
+    }
+    if (italicBtn) {
+        italicBtn.addEventListener('click', formatItalic);
+    }
+    if (strikethroughBtn) {
+        strikethroughBtn.addEventListener('click', formatStrikethrough);
+    }
+    if (codeBtn) {
+        codeBtn.addEventListener('click', formatCode);
+    }
+    if (headingBtn) {
+        headingBtn.addEventListener('click', toggleHeading);
+    }
+    if (quoteBtn) {
+        quoteBtn.addEventListener('click', toggleQuote);
+    }
+
+    if (checklistBtn) {
+        checklistBtn.addEventListener('click', toggleChecklist);
+    }
+    if (bulletListBtn) {
+        bulletListBtn.addEventListener('click', toggleBulletList);
+    }
+    if (numberedListBtn) {
+        numberedListBtn.addEventListener('click', toggleNumberedList);
+    }
+
+    if (fontSelect) {
+        fontSelect.addEventListener('change', changeNoteFont);
+    }
+    if (fontSizeSelect) {
+        fontSizeSelect.addEventListener('change', changeNoteFont);
+    }
 
     eventListenersInitialized = true;
 }
