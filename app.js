@@ -887,6 +887,16 @@ function getNotePlainText(htmlOrText) {
     return (temp.innerText || temp.textContent || '').trim();
 }
 
+function handleBodyPaste(e) {
+    const plainText = e.clipboardData ? e.clipboardData.getData('text/plain') : '';
+    if (!plainText) return;
+
+    e.preventDefault();
+    bodyInput.focus();
+    document.execCommand('insertText', false, plainText);
+    updateActiveNote();
+}
+
 function formatInitialBodyContent(body) {
     if (!body) return '';
     // If it already looks like HTML (has tags)
@@ -1112,6 +1122,7 @@ function setupEventListeners() {
     titleInput.addEventListener('input', updateActiveNote);
     categoryInput.addEventListener('input', updateActiveNote);
     bodyInput.addEventListener('input', updateActiveNote);
+    bodyInput.addEventListener('paste', handleBodyPaste);
     bodyInput.addEventListener('keydown', handleBodyKeydown);
 
     bodyInput.addEventListener('click', (e) => {
