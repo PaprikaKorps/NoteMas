@@ -440,7 +440,7 @@ body {
 
 .checklist-item {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 8px;
     margin: 4px 0;
 }
@@ -448,6 +448,7 @@ body {
 .checklist-checkbox {
     width: 16px;
     height: 16px;
+    margin-top: 7px;
     cursor: pointer;
     accent-color: var(--accent-color);
     flex-shrink: 0;
