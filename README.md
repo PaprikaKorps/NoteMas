@@ -1,37 +1,28 @@
-# NoteMás
+NoteMás User Manual
 
-A lightweight, browser-based note-taking application designed for quick, simple note management.
+Welcome to NoteMas, a lightweight, fast, and completely private markdown notetaking app.
 
-## Features
+Core Principles
 
-- **Instant Note Creation:** Fast and simple interface for writing down thoughts, ideas, and reminders.
-- **Clean UI:** Styled with a modern CSS layout (`style.css`) and custom branding (`favicon.svg`).
-- **Zero Server Setup:** Runs directly in the browser as a client-side web application.
+100% Local & Private: NoteMás operates entirely on your local machine without requiring an internet connection.
+No AI Integration: Your notes are written and managed strictly by you—no automated AI processing or cloud tracking.
+File Safety: Notes are saved as individual JSON files in your chosen local folder. Even if the app crashes or you stop using NoteMás entirely, your notes remain easily accessible directly from your computer's file explorer.
 
-## Project Structure
+Basic Functionality & Navigation
 
-NoteMas/
-├── index.html    # Main HTML structure
-├── style.css     # UI styles and layout
-├── app.js        # Core JavaScript application logic
-└── favicon.svg   # Web app icon
+Folder Selection: Click the Folder button located in the top left next to the app logo to choose or change the directory where your notes are read and saved. Note: changing your folder will not automatically move your existing notes.
+Categories: Organize your notes efficiently by assigning them to different categories.
+Pinning: Pin important notes to keep them easily accessible at the top of your list.
+Formatting: Apply custom formatting to your notes. Note formatting is universal per individual note, meaning each note can maintain its own unique styling configuration.
 
-## Getting Started
-Prerequisites
-No special backend or package managers required. You only need a modern web browser (Chrome, Firefox, Safari, Edge).
-Running Locally
-	1.	Clone or download the repository:
-git clone [https://github.com/PaprikaKorps/NoteMas.git](https://github.com/PaprikaKorps/NoteMas.git)
-cd NoteMas
+Resources
 
-	2.	Open the app:
-Open index.html directly in your browser, or serve it using a local static server like VS Code's Live Server or Python's HTTP server:
-python -m http.server 8000
+GitHub Repository: https://github.com/PaprikaKorps/NoteMas
 
-Then navigate to http://localhost:8000 in your web browser.
-Tech Stack
-⚬	HTML5
-⚬	CSS3
-⚬	JavaScript (Vanilla JS)
-License
-This project is available under the MIT License.
+
+
+
+
+
+
+
