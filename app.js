@@ -51,6 +51,9 @@ const bulletListBtn = document.getElementById('bullet-list-btn');
 const numberedListBtn = document.getElementById('numbered-list-btn');
 const exportBtn = document.getElementById('export-note-btn');
 const deleteBtn = document.getElementById('delete-note-btn');
+const deleteConfirmDialog = document.getElementById('delete-confirm-dialog');
+const categoryDropdownBtn = document.getElementById('category-dropdown-btn');
+const categoryDropdownMenu = document.getElementById('category-dropdown-menu');
 const saveStatus = document.getElementById('last-saved-indicator');
 
 // ============================================================
@@ -566,6 +569,21 @@ async function createNote() {
     }
 }
 
+function resizeCategoryInput() {
+    const styles = window.getComputedStyle(categoryInput);
+    const canvas = resizeCategoryInput.canvas || (resizeCategoryInput.canvas = document.createElement('canvas'));
+    const context = canvas.getContext('2d');
+    if (!context) return;
+
+    context.font = `${styles.fontWeight} ${styles.fontSize} ${styles.fontFamily}`;
+    const text = categoryInput.value || categoryInput.placeholder;
+    const letterSpacing = parseFloat(styles.letterSpacing) || 0;
+    const padding = (parseFloat(styles.paddingLeft) || 0) + (parseFloat(styles.paddingRight) || 0);
+    const textWidth = context.measureText(text).width + Math.max(0, text.length - 1) * letterSpacing;
+    categoryInput.style.width = `${Math.ceil(textWidth + padding + 4)}px`;
+    categoryInput.scrollLeft = 0;
+}
+
 async function updateActiveNote() {
     if (!activeNoteId) return;
     
@@ -599,6 +617,7 @@ function applyNoteFont(fontFamily, fontSize) {
     titleInput.style.fontSize = selectedSize;
     categoryInput.style.fontSize = selectedSize;
     bodyInput.style.fontSize = selectedSize;
+    resizeCategoryInput();
 
     if (fontSelect) {
         const fontExists = Array.from(fontSelect.options).some(option => option.value === selectedFont);
@@ -630,26 +649,39 @@ async function changeNoteFont() {
 
 async function deleteActiveNote() {
     if (!activeNoteId) return;
-    
-    if (confirm('Are you sure you want to delete this note file permanently?')) {
-        try {
-            const note = notes.find(n => n.id === activeNoteId);
 
-            if (IS_TAURI) {
-                await tauriDeleteNote(note.id);
-            } else {
-                await directoryHandle.removeEntry(note.handle.name);
-            }
+    const confirmed = await requestDeleteConfirmation();
+    if (!confirmed) return;
 
-            notes = notes.filter(n => n.id !== activeNoteId);
-            activeNoteId = null;
-            renderNotesList();
-            updateEditorView();
-        } catch (e) {
-            console.error('Failed to delete file', e);
-            alert('Could not delete the note file.');
+    try {
+        const note = notes.find(n => n.id === activeNoteId);
+
+        if (IS_TAURI) {
+            await tauriDeleteNote(note.id);
+        } else {
+            await directoryHandle.removeEntry(note.handle.name);
         }
+
+        notes = notes.filter(n => n.id !== activeNoteId);
+        activeNoteId = null;
+        renderNotesList();
+        updateEditorView();
+    } catch (e) {
+        console.error('Failed to delete file', e);
+        alert('Could not delete the note file.');
     }
+}
+
+function requestDeleteConfirmation() {
+    return new Promise(resolve => {
+        const handleClose = () => {
+            deleteConfirmDialog.removeEventListener('close', handleClose);
+            resolve(deleteConfirmDialog.returnValue === 'delete');
+        };
+
+        deleteConfirmDialog.addEventListener('close', handleClose);
+        deleteConfirmDialog.showModal();
+    });
 }
 
 async function exportActiveNote() {
@@ -708,6 +740,7 @@ function updateEditorView() {
         titleInput.style.fontSize = DEFAULT_NOTE_FONT_SIZE;
         categoryInput.style.fontSize = DEFAULT_NOTE_FONT_SIZE;
         bodyInput.style.fontSize = DEFAULT_NOTE_FONT_SIZE;
+        resizeCategoryInput();
         if (fontSelect) {
            fontSelect.value = formatFontFamily('Segoe UI');
         }
@@ -725,6 +758,7 @@ function updateEditorView() {
         categoryInput.value = note.category === 'Uncategorized' ? '' : note.category;
         bodyInput.innerHTML = formatInitialBodyContent(note.body);
         applyNoteFont(note.fontFamily || DEFAULT_NOTE_FONT, note.fontSize || DEFAULT_NOTE_FONT_SIZE);
+        resizeCategoryInput();
         
         if(!titleInput.value && !categoryInput.value && !getNotePlainText(note.body)) {
            titleInput.focus(); 
@@ -853,6 +887,27 @@ function renderNotesList() {
             categoryOptionsEl.appendChild(option);
         });
     }
+    renderCategoryDropdown(uniqueCategories);
+}
+
+function renderCategoryDropdown(categories) {
+    if (!categoryDropdownMenu) return;
+    categoryDropdownMenu.innerHTML = '';
+    categories.forEach(category => {
+        const option = document.createElement('button');
+        option.type = 'button';
+        option.className = 'category-dropdown-option';
+        option.textContent = category;
+        option.setAttribute('role', 'option');
+        option.addEventListener('click', () => {
+            categoryInput.value = category;
+            resizeCategoryInput();
+            categoryDropdownMenu.classList.remove('open');
+            categoryDropdownBtn.setAttribute('aria-expanded', 'false');
+            updateActiveNote();
+        });
+        categoryDropdownMenu.appendChild(option);
+    });
 }
 
 function showSaveStatus() {
@@ -1120,7 +1175,20 @@ function setupEventListeners() {
     exportBtn.addEventListener('click', exportActiveNote);
     deleteBtn.addEventListener('click', deleteActiveNote);
     titleInput.addEventListener('input', updateActiveNote);
-    categoryInput.addEventListener('input', updateActiveNote);
+    categoryInput.addEventListener('input', () => {
+        resizeCategoryInput();
+        updateActiveNote();
+    });
+    categoryDropdownBtn.addEventListener('click', () => {
+        const isOpen = categoryDropdownMenu.classList.toggle('open');
+        categoryDropdownBtn.setAttribute('aria-expanded', String(isOpen));
+    });
+    document.addEventListener('click', (event) => {
+        if (!event.target.closest('.category-input-wrapper')) {
+            categoryDropdownMenu.classList.remove('open');
+            categoryDropdownBtn.setAttribute('aria-expanded', 'false');
+        }
+    });
     bodyInput.addEventListener('input', updateActiveNote);
     bodyInput.addEventListener('paste', handleBodyPaste);
     bodyInput.addEventListener('keydown', handleBodyKeydown);

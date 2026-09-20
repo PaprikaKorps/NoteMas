@@ -1,29 +1,10 @@
 {
-  "name": "notemas",
-  "version": "1.0.0",
-  "description": "A lightweight, browser-based note-taking application designed for quick, simple note management.",
-  "main": "app.js",
-  "scripts": {
-    "tauri": "tauri",
-    "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/PaprikaKorps/NoteMas.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/PaprikaKorps/NoteMas/issues"
-  },
-  "homepage": "https://github.com/PaprikaKorps/NoteMas#readme",
-  "dependencies": {
-    "@tauri-apps/cli": "^2.11.4",
-    "@tauri-apps/plugin-dialog": "^2.7.3",
-    "@tauri-apps/plugin-fs": "^2.5.2"
-  }
+  "title": "",
+  "category": "youtube",
+  "body": "",
+  "updatedAt": "2026-09-20T08:51:11.345Z",
+  "isPinned": false,
+  "pinnedAt": null,
+  "fontFamily": "\"Segoe UI\", sans-serif",
+  "fontSize": "18px"
 }
