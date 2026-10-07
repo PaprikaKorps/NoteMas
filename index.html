@@ -195,6 +195,10 @@
 
                         <!-- Note Actions -->
                         <div class="ribbon-group" aria-label="Note Actions">
+                            <label class="markdown-copy-toggle" title="Keep a Markdown copy in the md-copies folder">
+                                <input id="markdown-copy-checkbox" type="checkbox" aria-label=".MD copy">
+                                <span>.MD copy</span>
+                            </label>
                             <button id="export-note-btn" class="btn-icon" aria-label="Export note"
                                 title="Export note as .txt">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -226,6 +230,7 @@
         </main>
     </div>
 
+    <script src="markdown-copy.js"></script>
     <script src="app.js"></script>
 </body>
 

@@ -15,10 +15,11 @@ Categories: Organize your notes efficiently by assigning them to different categ
 Pinning: Pin important notes to keep them easily accessible at the top of your list.
 Formatting: Apply custom formatting to your notes. Note formatting is universal per individual note, meaning each note can maintain its own unique styling configuration.
 
+Markdown Copies: Enable the “.MD copy” checkbox in a note's formatting ribbon to maintain a plain-text Markdown copy in the `md-copies` subfolder of the selected notes folder. Each copy uses the same filename as its JSON note, contains the note title followed by its text, and is updated when the note is saved. Turning the checkbox off or deleting the note removes its Markdown copy.
+
 Resources
 
 GitHub Repository: https://github.com/PaprikaKorps/NoteMas
-
 
 
 
