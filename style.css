@@ -261,6 +261,26 @@ body {
     align-items: center;
 }
 
+.markdown-copy-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0 6px;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.markdown-copy-toggle input {
+    accent-color: var(--accent-color);
+    cursor: pointer;
+}
+
+.markdown-copy-toggle input:disabled {
+    cursor: default;
+}
+
 .ribbon-divider {
     width: 1px;
     height: 18px;

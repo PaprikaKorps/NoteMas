@@ -8,6 +8,7 @@
 // ============================================================
 const IS_TAURI = Boolean(window.__TAURI__);
 let tauriDirPath = null;     // string path used in Tauri mode
+const markdownCopy = window.NoteMarkdownCopy;
 
 // State
 let directoryHandle = null;  // FileSystemDirectoryHandle used in browser mode
@@ -50,6 +51,7 @@ const checklistBtn = document.getElementById('checklist-btn');
 const bulletListBtn = document.getElementById('bullet-list-btn');
 const numberedListBtn = document.getElementById('numbered-list-btn');
 const exportBtn = document.getElementById('export-note-btn');
+const markdownCopyCheckbox = document.getElementById('markdown-copy-checkbox');
 const deleteBtn = document.getElementById('delete-note-btn');
 const deleteConfirmDialog = document.getElementById('delete-confirm-dialog');
 const categoryDropdownBtn = document.getElementById('category-dropdown-btn');
@@ -107,7 +109,8 @@ async function tauriLoadNotes(dirPath) {
                         isPinned: noteData.isPinned || false,
                         pinnedAt: noteData.pinnedAt || null,
                         fontFamily: noteData.fontFamily || DEFAULT_NOTE_FONT,
-                        fontSize: noteData.fontSize || DEFAULT_NOTE_FONT_SIZE
+                        fontSize: noteData.fontSize || DEFAULT_NOTE_FONT_SIZE,
+                        markdownCopy: markdownCopy.isEnabled(noteData)
                     });
                 } catch (e) {
                     console.error('Failed to parse note:', entry.name, e);
@@ -127,16 +130,11 @@ async function tauriLoadNotes(dirPath) {
 async function tauriSaveNote(note) {
     const { writeTextFile } = window.__TAURI__.fs;
     const filePath = joinPath(tauriDirPath, note.id + '.json');
-    const noteData = {
-        title: note.title,
-        category: note.category,
-        body: note.body,
-        updatedAt: note.updatedAt,
-        isPinned: note.isPinned,
-        pinnedAt: note.pinnedAt,
+    const noteData = markdownCopy.toNoteFileData({
+        ...note,
         fontFamily: note.fontFamily || DEFAULT_NOTE_FONT,
         fontSize: note.fontSize || DEFAULT_NOTE_FONT_SIZE
-    };
+    });
     await writeTextFile(filePath, JSON.stringify(noteData, null, 2));
 }
 
@@ -147,6 +145,45 @@ async function tauriDeleteNote(noteId) {
     const { remove } = window.__TAURI__.fs;
     const filePath = joinPath(tauriDirPath, noteId + '.json');
     await remove(filePath);
+}
+
+async function writeMarkdownCopy(note) {
+    const content = markdownCopy.contentForNote(note.title, getMarkdownCopyBody(note.body));
+    const filename = markdownCopy.filenameForNote(note.id);
+
+    if (IS_TAURI) {
+        const { mkdir, writeTextFile } = window.__TAURI__.fs;
+        const directoryPath = joinPath(tauriDirPath, markdownCopy.DIRECTORY_NAME);
+        await mkdir(directoryPath, { recursive: true });
+        await writeTextFile(joinPath(directoryPath, filename), content);
+        return;
+    }
+
+    const copyDirectory = await directoryHandle.getDirectoryHandle(markdownCopy.DIRECTORY_NAME, { create: true });
+    const fileHandle = await copyDirectory.getFileHandle(filename, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(content);
+    await writable.close();
+}
+
+async function deleteMarkdownCopy(noteId) {
+    const filename = markdownCopy.filenameForNote(noteId);
+
+    if (IS_TAURI) {
+        const { exists, remove } = window.__TAURI__.fs;
+        const filePath = joinPath(joinPath(tauriDirPath, markdownCopy.DIRECTORY_NAME), filename);
+        if (await exists(filePath)) {
+            await remove(filePath);
+        }
+        return;
+    }
+
+    try {
+        const copyDirectory = await directoryHandle.getDirectoryHandle(markdownCopy.DIRECTORY_NAME);
+        await copyDirectory.removeEntry(filename);
+    } catch (e) {
+        if (e.name !== 'NotFoundError') throw e;
+    }
 }
 
 /**
@@ -461,7 +498,8 @@ async function loadNotes() {
                         isPinned: noteData.isPinned || false,
                         pinnedAt: noteData.pinnedAt || null,
                         fontFamily: noteData.fontFamily || DEFAULT_NOTE_FONT,
-                        fontSize: noteData.fontSize || DEFAULT_NOTE_FONT_SIZE
+                        fontSize: noteData.fontSize || DEFAULT_NOTE_FONT_SIZE,
+                        markdownCopy: markdownCopy.isEnabled(noteData)
                     });
                 } catch (e) {
                     console.error('Failed to parse note:', entry.name);
@@ -479,22 +517,30 @@ async function saveNoteToFile(note) {
         } else {
             // Browser mode
             const writable = await note.handle.createWritable();
-            const noteData = {
-                title: note.title,
-                category: note.category,
-                body: note.body,
-                updatedAt: note.updatedAt,
-                isPinned: note.isPinned,
-                pinnedAt: note.pinnedAt,
+            const noteData = markdownCopy.toNoteFileData({
+                ...note,
                 fontFamily: note.fontFamily || DEFAULT_NOTE_FONT,
                 fontSize: note.fontSize || DEFAULT_NOTE_FONT_SIZE
-            };
+            });
             await writable.write(JSON.stringify(noteData, null, 2));
             await writable.close();
         }
-        showSaveStatus();
     } catch (e) {
         console.error('Failed to save file', e);
+        alert('Could not save the note file.');
+        return;
+    }
+
+    try {
+        if (note.markdownCopy === true) {
+            await writeMarkdownCopy(note);
+        } else {
+            await deleteMarkdownCopy(note.id);
+        }
+        showSaveStatus();
+    } catch (e) {
+        console.error('Failed to update Markdown copy for note:', note.id, e);
+        alert('The note was saved, but its Markdown copy could not be updated. See the console for details.');
     }
 }
 
@@ -533,7 +579,8 @@ async function createNote() {
             isPinned: false,
             pinnedAt: null,
             fontFamily: DEFAULT_NOTE_FONT,
-            fontSize: DEFAULT_NOTE_FONT_SIZE
+            fontSize: DEFAULT_NOTE_FONT_SIZE,
+            markdownCopy: false
         };
 
         if (IS_TAURI) {
@@ -545,16 +592,7 @@ async function createNote() {
             newNote.handle = newFileHandle;
             // Save initial state
             const writable = await newFileHandle.createWritable();
-            const noteData = {
-                title: newNote.title,
-                category: newNote.category,
-                body: newNote.body,
-                updatedAt: newNote.updatedAt,
-                isPinned: newNote.isPinned,
-                pinnedAt: newNote.pinnedAt,
-                fontFamily: newNote.fontFamily,
-                fontSize: newNote.fontSize
-            };
+            const noteData = markdownCopy.toNoteFileData(newNote);
             await writable.write(JSON.stringify(noteData, null, 2));
             await writable.close();
         }
@@ -608,6 +646,19 @@ async function updateActiveNote() {
     }, 500);
 }
 
+async function changeMarkdownCopy() {
+    if (!activeNoteId) return;
+    const note = notes.find(n => n.id === activeNoteId);
+    if (!note) return;
+
+    clearTimeout(saveTimeout);
+    await updateActiveNote();
+    clearTimeout(saveTimeout);
+    note.markdownCopy = markdownCopyCheckbox.checked;
+    await saveNoteToFile(note);
+    renderNotesList();
+}
+
 function applyNoteFont(fontFamily, fontSize) {
     const selectedFont = fontFamily || DEFAULT_NOTE_FONT;
     const selectedSize = fontSize || DEFAULT_NOTE_FONT_SIZE;
@@ -653,6 +704,7 @@ async function deleteActiveNote() {
     const confirmed = await requestDeleteConfirmation();
     if (!confirmed) return;
 
+    clearTimeout(saveTimeout);
     try {
         const note = notes.find(n => n.id === activeNoteId);
 
@@ -660,6 +712,13 @@ async function deleteActiveNote() {
             await tauriDeleteNote(note.id);
         } else {
             await directoryHandle.removeEntry(note.handle.name);
+        }
+
+        try {
+            await deleteMarkdownCopy(note.id);
+        } catch (e) {
+            console.error('Failed to delete Markdown copy for note:', note.id, e);
+            alert('The note was deleted, but its Markdown copy could not be deleted. See the console for details.');
         }
 
         notes = notes.filter(n => n.id !== activeNoteId);
@@ -747,6 +806,8 @@ function updateEditorView() {
         if (fontSizeSelect) {
            fontSizeSelect.value = DEFAULT_NOTE_FONT_SIZE;
         }
+        markdownCopyCheckbox.checked = false;
+        markdownCopyCheckbox.disabled = true;
         return;
     }
     
@@ -758,6 +819,8 @@ function updateEditorView() {
         categoryInput.value = note.category === 'Uncategorized' ? '' : note.category;
         bodyInput.innerHTML = formatInitialBodyContent(note.body);
         applyNoteFont(note.fontFamily || DEFAULT_NOTE_FONT, note.fontSize || DEFAULT_NOTE_FONT_SIZE);
+        markdownCopyCheckbox.checked = note.markdownCopy === true;
+        markdownCopyCheckbox.disabled = false;
         resizeCategoryInput();
         
         if(!titleInput.value && !categoryInput.value && !getNotePlainText(note.body)) {
@@ -940,6 +1003,24 @@ function getNotePlainText(htmlOrText) {
     const temp = document.createElement('div');
     temp.innerHTML = htmlOrText;
     return (temp.innerText || temp.textContent || '').trim();
+}
+
+function getMarkdownCopyBody(body) {
+    if (!body || !/<[a-z][\s\S]*>/i.test(body)) return body || '';
+
+    const container = document.createElement('div');
+    container.innerHTML = body;
+    const blockTags = new Set(['DIV', 'P', 'H1', 'H2', 'H3', 'BLOCKQUOTE', 'LI']);
+    const textFromNode = (node) => {
+        if (node.nodeType === Node.TEXT_NODE) return node.nodeValue;
+        if (node.nodeType !== Node.ELEMENT_NODE) return '';
+        if (node.tagName === 'BR') return '\n';
+
+        const text = Array.from(node.childNodes, textFromNode).join('');
+        return blockTags.has(node.tagName) && text ? `${text}\n` : text;
+    };
+    const text = textFromNode(container);
+    return text.replace(/\n+$/, '');
 }
 
 function handleBodyPaste(e) {
@@ -1173,6 +1254,7 @@ function setupEventListeners() {
 
     newNoteBtn.addEventListener('click', createNote);
     exportBtn.addEventListener('click', exportActiveNote);
+    markdownCopyCheckbox.addEventListener('change', changeMarkdownCopy);
     deleteBtn.addEventListener('click', deleteActiveNote);
     titleInput.addEventListener('input', updateActiveNote);
     categoryInput.addEventListener('input', () => {

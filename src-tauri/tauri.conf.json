@@ -5,8 +5,8 @@
   "identifier": "com.notemas.desktop",
   "build": {
     "frontendDist": "../dist",
-    "beforeDevCommand": "mkdir -p dist && cp index.html style.css app.js favicon.svg dist/",
-    "beforeBuildCommand": "mkdir -p dist && cp index.html style.css app.js favicon.svg dist/"
+    "beforeDevCommand": "mkdir -p dist && cp index.html style.css app.js markdown-copy.js favicon.svg dist/",
+    "beforeBuildCommand": "mkdir -p dist && cp index.html style.css app.js markdown-copy.js favicon.svg dist/"
   },
   "app": {
     "withGlobalTauri": true,
