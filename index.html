@@ -38,17 +38,41 @@
             <div class="sidebar-header">
                 <div class="sidebar-header-left">
                     <h1>NoteMás</h1>
-                    <button id="change-folder-btn" class="btn-icon sidebar-folder-btn" aria-label="Choose notes folder"
-                        title="Choose notes folder">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path
-                                d="M3 7.5A2.5 2.5 0 0 1 5.5 5h3.1a2.5 2.5 0 0 1 1.8.8L12.4 7H18.5A2.5 2.5 0 0 1 21 9.5v7A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5v-9z">
-                            </path>
-                            <path d="M8 12h8"></path>
-                            <path d="M12 8v8"></path>
-                        </svg>
-                    </button>
+                    <div class="settings-menu">
+                        <button id="settings-menu-btn" class="btn-icon settings-menu-trigger" type="button"
+                            aria-label="Settings" aria-haspopup="true" aria-expanded="false"
+                            aria-controls="settings-menu" title="Settings">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <circle cx="12" cy="12" r="3"></circle>
+                                <path
+                                    d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.6 2.77-.08-.02a1.7 1.7 0 0 0-1.77.34l-.06.06h-3.2l-.04-.08a1.7 1.7 0 0 0-1.52-1.1 1.7 1.7 0 0 0-1.52 1.1l-.04.08h-3.2l-.06-.06a1.7 1.7 0 0 0-1.77-.34l-.08.02-1.6-2.77.06-.06A1.7 1.7 0 0 0 3.6 15l-.08-.04v-3.2l.08-.04a1.7 1.7 0 0 0 0-1.52l-.08-.04v-3.2l.08-.04a1.7 1.7 0 0 0 0-1.52l-.06-.06 1.6-2.77.08.02a1.7 1.7 0 0 0 1.77-.34l.06-.06h3.2l.04.08a1.7 1.7 0 0 0 1.52 1.1 1.7 1.7 0 0 0 1.52-1.1l.04-.08h3.2l.06.06a1.7 1.7 0 0 0 1.77.34l.08-.02 1.6 2.77-.06.06A1.7 1.7 0 0 0 20.4 9l.08.04v3.2l-.08.04a1.7 1.7 0 0 0-1 2.72z">
+                                </path>
+                            </svg>
+                        </button>
+                        <div id="settings-menu" class="settings-menu-panel" hidden>
+                            <button id="change-folder-btn" class="settings-menu-item" type="button">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path
+                                        d="M3 7.5A2.5 2.5 0 0 1 5.5 5h3.1a2.5 2.5 0 0 1 1.8.8L12.4 7H18.5A2.5 2.5 0 0 1 21 9.5v7A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5v-9z">
+                                    </path>
+                                    <path d="M8 12h8"></path>
+                                    <path d="M12 8v8"></path>
+                                </svg>
+                                Choose notes folder
+                            </button>
+                            <label class="settings-theme-option" for="theme-select">
+                                <span>Theme</span>
+                                <select id="theme-select" aria-label="Theme">
+                                    <option value="dark">Dark</option>
+                                    <option value="light">Light</option>
+                                    <option value="terminal">Retro Orange</option>
+                                    <option value="retro-green">Retro Green</option>
+                                </select>
+                            </label>
+                        </div>
+                    </div>
                 </div>
                 <button id="new-note-btn" class="btn-primary" aria-label="Create new note">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -79,6 +103,10 @@
             </div>
 
             <div class="editor-content hidden" id="editor-content">
+                <div class="terminal-hud">
+                    <span id="editor-coordinates">Ln 1, Col 1</span>
+                    <span id="editor-word-count">0 words</span>
+                </div>
                 <header class="editor-header">
                     <div class="editor-header-inputs">
                         <div class="category-input-wrapper">
@@ -224,7 +252,15 @@
                 <div id="note-body-input" class="note-body-input" contenteditable="true"
                     data-placeholder="Start typing your note here..." aria-label="Note body" spellcheck="true"></div>
                 <div class="editor-footer">
+                    <div class="terminal-divider" aria-hidden="true">
+                        <span>........................................................................................................................</span>
+                        <span>........................................................................................................................</span>
+                    </div>
                     <span id="last-saved-indicator" class="save-status">Saved to file</span>
+                    <div class="terminal-footer-meta">
+                        <span id="editor-scroll-percentage">0%</span>
+                        <span id="editor-note-path">No note selected</span>
+                    </div>
                 </div>
             </div>
         </main>

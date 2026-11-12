@@ -10,7 +10,7 @@ File Safety: Notes are saved as individual JSON files in your chosen local folde
 
 Basic Functionality & Navigation
 
-Folder Selection: Click the Folder button located in the top left next to the app logo to choose or change the directory where your notes are read and saved. Note: changing your folder will not automatically move your existing notes.
+Settings: Click the settings button next to the app logo to choose or change the notes folder and select a dark, light, Retro Orange, or Retro Green theme. The retro themes use a monochrome terminal-style editor with cursor, word-count, scroll, and file-path indicators. Changing your folder will not automatically move your existing notes. Your theme preference is saved on this device.
 Categories: Organize your notes efficiently by assigning them to different categories.
 Pinning: Pin important notes to keep them easily accessible at the top of your list.
 Formatting: Apply custom formatting to your notes. Note formatting is universal per individual note, meaning each note can maintain its own unique styling configuration.
@@ -20,9 +20,6 @@ Markdown Copies: Enable the “.MD copy” checkbox in a note's formatting ribbo
 Resources
 
 GitHub Repository: https://github.com/PaprikaKorps/NoteMas
-
-
-
 
 
 

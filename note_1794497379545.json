@@ -1,0 +1,11 @@
+{
+  "title": "my fav note",
+  "category": "test 1 category",
+  "body": "this is a new note i just made iand i am now just writing here things to see how is it going",
+  "updatedAt": "2026-11-12T15:34:37.653Z",
+  "isPinned": false,
+  "pinnedAt": null,
+  "fontFamily": "\"Lucida Console\", monospace",
+  "fontSize": "18px",
+  "markdownCopy": false
+}
