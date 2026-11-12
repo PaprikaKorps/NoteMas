@@ -31,6 +31,13 @@ const folderOverlay = document.getElementById('folder-overlay');
 const folderMessage = document.getElementById('folder-message');
 const openFolderBtn = document.getElementById('open-folder-btn');
 const changeFolderBtn = document.getElementById('change-folder-btn');
+const settingsMenuBtn = document.getElementById('settings-menu-btn');
+const settingsMenu = document.getElementById('settings-menu');
+const themeSelect = document.getElementById('theme-select');
+const editorCoordinates = document.getElementById('editor-coordinates');
+const editorWordCount = document.getElementById('editor-word-count');
+const editorScrollPercentage = document.getElementById('editor-scroll-percentage');
+const editorNotePath = document.getElementById('editor-note-path');
 const notesListEl = document.getElementById('notes-list');
 const newNoteBtn = document.getElementById('new-note-btn');
 const editorPlaceholder = document.getElementById('editor-placeholder');
@@ -57,6 +64,74 @@ const deleteConfirmDialog = document.getElementById('delete-confirm-dialog');
 const categoryDropdownBtn = document.getElementById('category-dropdown-btn');
 const categoryDropdownMenu = document.getElementById('category-dropdown-menu');
 const saveStatus = document.getElementById('last-saved-indicator');
+const THEME_STORAGE_KEY = 'notemas-theme';
+
+function applyTheme(theme) {
+    const selectedTheme = ['light', 'terminal', 'retro-green'].includes(theme) ? theme : 'dark';
+    if (document.documentElement) {
+        document.documentElement.dataset.theme = selectedTheme === 'retro-green' ? 'terminal' : selectedTheme;
+        if (selectedTheme === 'retro-green') {
+            document.documentElement.dataset.terminalPalette = 'green';
+        } else {
+            delete document.documentElement.dataset.terminalPalette;
+        }
+    }
+    if (themeSelect) themeSelect.value = selectedTheme;
+}
+
+applyTheme(typeof localStorage === 'undefined' ? null : localStorage.getItem(THEME_STORAGE_KEY));
+
+function setSettingsMenuOpen(isOpen) {
+    settingsMenu.hidden = !isOpen;
+    settingsMenuBtn.setAttribute('aria-expanded', String(isOpen));
+    if (isOpen) {
+        positionSettingsMenu();
+    } else {
+        settingsMenu.style.left = '';
+        settingsMenu.style.top = '';
+    }
+}
+
+function positionSettingsMenu() {
+    const triggerRect = settingsMenuBtn.getBoundingClientRect();
+    const menuRect = settingsMenu.getBoundingClientRect();
+    const viewportPadding = 12;
+    const maxLeft = Math.max(viewportPadding, window.innerWidth - menuRect.width - viewportPadding);
+    const left = Math.min(Math.max(triggerRect.left, viewportPadding), maxLeft);
+    const belowTop = triggerRect.bottom + 8;
+    const top = belowTop + menuRect.height <= window.innerHeight - viewportPadding
+        ? belowTop
+        : Math.max(viewportPadding, triggerRect.top - menuRect.height - 8);
+
+    settingsMenu.style.left = `${left}px`;
+    settingsMenu.style.top = `${top}px`;
+}
+
+settingsMenuBtn.addEventListener('click', () => {
+    setSettingsMenuOpen(settingsMenu.hidden);
+});
+
+window.addEventListener('resize', () => {
+    if (!settingsMenu.hidden) positionSettingsMenu();
+});
+
+document.addEventListener('click', event => {
+    if (!event.target.closest('.settings-menu')) {
+        setSettingsMenuOpen(false);
+    }
+});
+
+document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !settingsMenu.hidden) {
+        setSettingsMenuOpen(false);
+        settingsMenuBtn.focus();
+    }
+});
+
+themeSelect.addEventListener('change', () => {
+    applyTheme(themeSelect.value);
+    localStorage.setItem(THEME_STORAGE_KEY, themeSelect.value);
+});
 
 // ============================================================
 // Tauri Filesystem Helpers
@@ -444,7 +519,10 @@ async function init() {
 
 openFolderBtn.addEventListener('click', selectAndLoadFolder);
 if (changeFolderBtn) {
-    changeFolderBtn.addEventListener('click', selectAndLoadFolder);
+    changeFolderBtn.addEventListener('click', () => {
+        setSettingsMenuOpen(false);
+        selectAndLoadFolder();
+    });
 }
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -808,6 +886,7 @@ function updateEditorView() {
         }
         markdownCopyCheckbox.checked = false;
         markdownCopyCheckbox.disabled = true;
+        updateTerminalHud();
         return;
     }
     
@@ -822,10 +901,69 @@ function updateEditorView() {
         markdownCopyCheckbox.checked = note.markdownCopy === true;
         markdownCopyCheckbox.disabled = false;
         resizeCategoryInput();
+        updateTerminalHud();
         
         if(!titleInput.value && !categoryInput.value && !getNotePlainText(note.body)) {
            titleInput.focus(); 
         }
+    }
+}
+
+function getActiveNotePath() {
+    const note = notes.find(item => item.id === activeNoteId);
+    if (IS_TAURI) {
+        return note && tauriDirPath ? joinPath(tauriDirPath, `${note.id}.json`) : tauriDirPath || 'No folder selected';
+    }
+
+    const folderName = directoryHandle?.name || 'Notes';
+    return note ? `${folderName}/${note.handle?.name || `${note.id}.json`}` : folderName;
+}
+
+function updateTerminalHud() {
+    if (!editorCoordinates || !editorWordCount || !editorScrollPercentage || !editorNotePath) return;
+
+    const text = bodyInput.innerText || '';
+    const selection = window.getSelection();
+    let line = 1;
+    let column = 1;
+
+    if (selection?.anchorNode && bodyInput.contains(selection.anchorNode)) {
+        const range = document.createRange();
+        range.selectNodeContents(bodyInput);
+        range.setEnd(selection.anchorNode, selection.anchorOffset);
+        const prefix = document.createElement('div');
+        prefix.append(range.cloneContents());
+        const precedingText = prefix.innerText || prefix.textContent || '';
+        const lines = precedingText.split('\n');
+        line = lines.length;
+        column = lines[lines.length - 1].length + 1;
+    }
+
+    const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
+    const scrollableHeight = bodyInput.scrollHeight - bodyInput.clientHeight;
+    const scrollPercent = scrollableHeight > 0
+        ? Math.round((bodyInput.scrollTop / scrollableHeight) * 100)
+        : 0;
+
+    editorCoordinates.textContent = `Ln ${line}, Col ${column}`;
+    editorWordCount.textContent = `${wordCount} ${wordCount === 1 ? 'word' : 'words'}`;
+    editorScrollPercentage.textContent = `${scrollPercent}%`;
+    editorNotePath.textContent = getActiveNotePath();
+}
+
+function updateActiveEditBlock() {
+    const previousBlock = bodyInput.querySelector('.active-edit-block');
+    if (previousBlock) previousBlock.classList.remove('active-edit-block');
+
+    const selection = window.getSelection();
+    if (!selection?.anchorNode || !bodyInput.contains(selection.anchorNode)) return;
+
+    const anchorElement = selection.anchorNode.nodeType === Node.ELEMENT_NODE
+        ? selection.anchorNode
+        : selection.anchorNode.parentElement;
+    const activeBlock = anchorElement?.closest('p, div, li, h1, h2, h3, blockquote');
+    if (activeBlock && activeBlock !== bodyInput) {
+        activeBlock.classList.add('active-edit-block');
     }
 }
 
@@ -836,8 +974,6 @@ function createNoteItemHTML(note) {
     }).format(date);
     
     const displayTitle = (note.title || '').trim() || 'Untitled Note';
-    const plainBody = getNotePlainText(note.body);
-    const displayBody = plainBody || 'No additional text';
     
     let categoryTag = '';
     if (note.category && note.category.toLowerCase() !== 'uncategorized') {
@@ -855,7 +991,6 @@ function createNoteItemHTML(note) {
                 </svg>
             </button>
         </div>
-        <div class="note-item-preview">${escapeHTML(displayBody)}</div>
         <div class="note-item-date">${formattedDate}</div>
     `;
 }
@@ -1272,8 +1407,22 @@ function setupEventListeners() {
         }
     });
     bodyInput.addEventListener('input', updateActiveNote);
+    bodyInput.addEventListener('input', updateTerminalHud);
+    bodyInput.addEventListener('click', () => {
+        updateActiveEditBlock();
+        updateTerminalHud();
+    });
+    bodyInput.addEventListener('keyup', () => {
+        updateActiveEditBlock();
+        updateTerminalHud();
+    });
+    bodyInput.addEventListener('scroll', updateTerminalHud);
     bodyInput.addEventListener('paste', handleBodyPaste);
     bodyInput.addEventListener('keydown', handleBodyKeydown);
+    document.addEventListener('selectionchange', () => {
+        updateActiveEditBlock();
+        updateTerminalHud();
+    });
 
     bodyInput.addEventListener('click', (e) => {
         if (e.target && e.target.classList.contains('checklist-checkbox')) {
