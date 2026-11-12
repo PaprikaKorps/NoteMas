@@ -1049,35 +1049,6 @@ body {
     background: transparent;
 }
 
-:root[data-theme="terminal"] .note-body-input :is(p, div, li, h1, h2, h3, blockquote).active-edit-block {
-    position: relative;
-    margin-left: -24px;
-    margin-right: -24px;
-    padding-left: 20px;
-    padding-right: 28px;
-    color: var(--selection-text);
-    background: var(--selection-bg);
-}
-
-:root[data-theme="terminal"] .note-body-input .active-edit-block::before {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    width: 3px;
-    background: var(--accent-border);
-    content: "";
-}
-
-:root[data-theme="terminal"] .note-body-input .active-edit-block *,
-:root[data-theme="terminal"] .note-body-input .active-edit-block h1,
-:root[data-theme="terminal"] .note-body-input .active-edit-block h2,
-:root[data-theme="terminal"] .note-body-input .active-edit-block code,
-:root[data-theme="terminal"] .note-body-input .active-edit-block blockquote {
-    color: var(--selection-text);
-    background: transparent;
-}
-
 :root[data-theme="terminal"] .note-body-input ::selection {
     color: var(--text-primary);
     background: var(--bg-canvas);
@@ -1236,13 +1207,6 @@ body {
     :root[data-theme="terminal"] .note-body-input {
         padding-right: 10px;
         padding-left: 10px;
-    }
-
-    :root[data-theme="terminal"] .note-body-input :is(p, div, li, h1, h2, h3, blockquote).active-edit-block {
-        margin-left: -10px;
-        margin-right: -10px;
-        padding-left: 7px;
-        padding-right: 17px;
     }
 
     :root[data-theme="terminal"] .editor-footer {

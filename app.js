@@ -951,22 +951,6 @@ function updateTerminalHud() {
     editorNotePath.textContent = getActiveNotePath();
 }
 
-function updateActiveEditBlock() {
-    const previousBlock = bodyInput.querySelector('.active-edit-block');
-    if (previousBlock) previousBlock.classList.remove('active-edit-block');
-
-    const selection = window.getSelection();
-    if (!selection?.anchorNode || !bodyInput.contains(selection.anchorNode)) return;
-
-    const anchorElement = selection.anchorNode.nodeType === Node.ELEMENT_NODE
-        ? selection.anchorNode
-        : selection.anchorNode.parentElement;
-    const activeBlock = anchorElement?.closest('p, div, li, h1, h2, h3, blockquote');
-    if (activeBlock && activeBlock !== bodyInput) {
-        activeBlock.classList.add('active-edit-block');
-    }
-}
-
 function createNoteItemHTML(note) {
     const date = new Date(note.updatedAt);
     const formattedDate = new Intl.DateTimeFormat('en-US', {
@@ -1408,21 +1392,12 @@ function setupEventListeners() {
     });
     bodyInput.addEventListener('input', updateActiveNote);
     bodyInput.addEventListener('input', updateTerminalHud);
-    bodyInput.addEventListener('click', () => {
-        updateActiveEditBlock();
-        updateTerminalHud();
-    });
-    bodyInput.addEventListener('keyup', () => {
-        updateActiveEditBlock();
-        updateTerminalHud();
-    });
+    bodyInput.addEventListener('click', updateTerminalHud);
+    bodyInput.addEventListener('keyup', updateTerminalHud);
     bodyInput.addEventListener('scroll', updateTerminalHud);
     bodyInput.addEventListener('paste', handleBodyPaste);
     bodyInput.addEventListener('keydown', handleBodyKeydown);
-    document.addEventListener('selectionchange', () => {
-        updateActiveEditBlock();
-        updateTerminalHud();
-    });
+    document.addEventListener('selectionchange', updateTerminalHud);
 
     bodyInput.addEventListener('click', (e) => {
         if (e.target && e.target.classList.contains('checklist-checkbox')) {
