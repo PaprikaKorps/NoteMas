@@ -40,7 +40,7 @@
 :root[data-theme="terminal"] {
     --bg-canvas: #000000;
     --text-primary: #FFFFFF;
-    --accent-border: #E84A1B;
+    --accent-border: #AE3814;
     --selection-bg: #F5D76E;
     --selection-text: #C0392B;
     --bg-color: var(--bg-canvas);
@@ -207,7 +207,7 @@ body {
 }
 
 :root[data-theme="terminal"][data-terminal-palette="green"] {
-    --accent-border: #33FF33;
+    --accent-border: #26BF26;
     --selection-text: #1B5E20;
 }
 
@@ -979,8 +979,15 @@ body {
 :root[data-theme="terminal"] .editor-area,
 :root[data-theme="terminal"] .editor-content {
     position: relative;
+    min-width: 0;
     background: var(--bg-canvas);
     animation: none;
+}
+
+:root[data-theme="terminal"] .editor-header,
+:root[data-theme="terminal"] .editor-header-inputs {
+    min-width: 0;
+    max-width: 100%;
 }
 
 :root[data-theme="terminal"] .editor-header {
@@ -988,6 +995,7 @@ body {
 }
 
 :root[data-theme="terminal"] .editor-header-actions {
+    max-width: 100%;
     background: var(--bg-canvas);
     border: 1px solid var(--accent-border);
     padding: 3px;
@@ -1029,9 +1037,14 @@ body {
 }
 
 :root[data-theme="terminal"] .note-body-input {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
     padding: 0 24px;
     line-height: 1.55;
     white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 :root[data-theme="terminal"] .note-body-input * {
@@ -1050,13 +1063,13 @@ body {
 }
 
 :root[data-theme="terminal"] .note-body-input ::selection {
-    color: var(--text-primary);
-    background: var(--bg-canvas);
+    color: var(--selection-text);
+    background: var(--selection-bg);
 }
 
 :root[data-theme="terminal"] .note-body-input ::-moz-selection {
-    color: var(--text-primary);
-    background: var(--bg-canvas);
+    color: var(--selection-text);
+    background: var(--selection-bg);
 }
 
 :root[data-theme="terminal"] .terminal-hud {
