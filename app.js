@@ -1119,9 +1119,35 @@ function escapeHTML(str) {
 
 function getNotePlainText(htmlOrText) {
     if (!htmlOrText) return '';
+
+    if (!/<[a-z][\s\S]*>/i.test(htmlOrText)) {
+        return htmlOrText.replace(/\r\n?/g, '\n');
+    }
+
     const temp = document.createElement('div');
     temp.innerHTML = htmlOrText;
-    return (temp.innerText || temp.textContent || '').trim();
+    const blockTags = new Set(['DIV', 'P', 'H1', 'H2', 'H3', 'BLOCKQUOTE', 'LI']);
+    const textFromNode = (node) => {
+        if (node.nodeType === Node.TEXT_NODE) return node.nodeValue;
+        if (node.nodeType !== Node.ELEMENT_NODE) return '';
+        if (node.tagName === 'BR') return '\n';
+
+        const children = Array.from(node.childNodes);
+        if (blockTags.has(node.tagName) && children.length === 1 && children[0].tagName === 'BR') {
+            return '';
+        }
+
+        return children.reduce((text, child, index) => {
+            const previousChild = children[index - 1];
+            const needsBlockBreak = index > 0 && (
+                (child.nodeType === Node.ELEMENT_NODE && blockTags.has(child.tagName)) ||
+                (previousChild.nodeType === Node.ELEMENT_NODE && blockTags.has(previousChild.tagName))
+            );
+            return text + (needsBlockBreak ? '\n' : '') + textFromNode(child);
+        }, '');
+    };
+
+    return textFromNode(temp).replace(/\r\n?/g, '\n').replace(/[ \t]+\n/g, '\n');
 }
 
 function getMarkdownCopyBody(body) {

@@ -189,6 +189,21 @@ test('exports rich-text note content as text rather than HTML', async () => {
     assert.equal(app.files.get('/notes/md-copies/note_456.md'), 'Formatted\n\nHeading\nParagraph');
 });
 
+test('converts formatted note blocks and line breaks to plain-text newlines', () => {
+    const app = createAppContext();
+
+    assert.equal(
+        app.run(`getNotePlainText('<p>First <strong>bold</strong></p><p>Second<br>continued</p><div>Last</div>')`),
+        'First bold\nSecond\ncontinued\nLast'
+    );
+    assert.equal(app.run(`getNotePlainText('First line\\nSecond line')`), 'First line\nSecond line');
+    assert.equal(
+        app.run(`getNotePlainText('<div><br></div><div>this is a note</div>')`),
+        '\nthis is a note'
+    );
+    assert.equal(app.run(`getNotePlainText('\\nFirst line')`), '\nFirst line');
+});
+
 test('deleting an opted-in note also deletes its Markdown copy', async () => {
     const app = createAppContext();
     app.run(`
